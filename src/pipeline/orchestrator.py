@@ -267,6 +267,12 @@ async def run_daily_pipeline(bot):
 
     state = load_state()
 
+    # "done" means the previous episode completed cleanly — safe to auto-reset for a new day.
+    if state["stage"] == "done":
+        from src.bot.state import reset_state
+        reset_state()
+        state = load_state()
+
     if state["stage"] != "idle":
         pub_channel = bot.get_channel(CHANNEL_IDS["publishing_log"])
         if pub_channel:

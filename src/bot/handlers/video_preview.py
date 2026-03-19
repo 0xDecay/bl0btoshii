@@ -6,6 +6,7 @@ Bot posts 2-3 video versions. User picks one or requests changes.
 import asyncio
 import os
 import re
+import shutil
 import discord
 from src.bot.state import load_state, save_state
 
@@ -333,6 +334,9 @@ async def _generate_metadata_and_schedule(bot, video_preview_channel):
         except Exception as idx_err:
             print(f"[Video Preview] Episode index logging failed (non-blocking): {idx_err}")
 
+        # Clean up all generated files — Drive has the copies now
+        _cleanup_episode_files(state)
+
         # Mark episode as done
         state["stage"] = "done"
         save_state(state)
@@ -343,3 +347,46 @@ async def _generate_metadata_and_schedule(bot, video_preview_channel):
         from src.bot.alerts import notify_error
         ep = state.get("current_episode")
         await notify_error(bot, "Publishing & Metadata", ep, str(e))
+
+
+def _cleanup_episode_files(state):
+    """Delete all generated episode files after successful publishing.
+
+    Removes output directories for every video variant. Safe to call
+    multiple times — silently skips missing paths.
+    """
+    output_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "output")
+    variants = state.get("video_variants", [])
+    cleaned = []
+
+    for variant in variants:
+        video_path = variant.get("video_path", "")
+        if not video_path:
+            continue
+        # video_path is like output/{name}/{name}.mp4 — delete the parent dir
+        episode_dir = os.path.dirname(video_path)
+        if os.path.isdir(episode_dir):
+            try:
+                shutil.rmtree(episode_dir)
+                cleaned.append(episode_dir)
+            except OSError as e:
+                print(f"[Cleanup] Failed to delete {episode_dir}: {e}")
+
+    # Also sweep the output dir for any orphaned episode folders from this run
+    if os.path.isdir(output_dir):
+        for entry in os.listdir(output_dir):
+            entry_path = os.path.join(output_dir, entry)
+            if os.path.isdir(entry_path) and entry_path not in cleaned:
+                # Only delete if it looks like an episode dir (contains .mp4 or audio/)
+                contents = os.listdir(entry_path)
+                has_video = any(f.endswith(".mp4") for f in contents)
+                has_audio = "audio" in contents
+                if has_video or has_audio:
+                    try:
+                        shutil.rmtree(entry_path)
+                        cleaned.append(entry_path)
+                    except OSError as e:
+                        print(f"[Cleanup] Failed to delete orphan {entry_path}: {e}")
+
+    if cleaned:
+        print(f"[Cleanup] Deleted {len(cleaned)} episode directories: {[os.path.basename(d) for d in cleaned]}")

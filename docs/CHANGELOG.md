@@ -4,6 +4,28 @@ All notable changes to the Mootoshi pipeline.
 
 ---
 
+## 2026-03-19 — Automated Episode File Cleanup
+
+**Problem:** The video pipeline generates MP4 files and mixed audio WAVs in `output/{episode_name}/` directories. After Google Drive upload and platform publishing, these files remained on the VPS indefinitely, accumulating several GBs of disk space over time and requiring manual cleanup.
+
+**What changed:**
+
+1. **Pipeline-level cleanup** — After successful Drive upload, platform publishing, and episode logging, all generated episode directories are automatically deleted. Covers both selected variant directories and any orphaned episode folders (containing `.mp4` or `audio/`) left from the current run.
+
+2. **Cron safety net** — New `scripts/cleanup_output.sh` runs daily at 4 AM UTC via cron. Deletes any output directories older than 24 hours, catching anything the pipeline cleanup missed (crashes, partial runs, stuck episodes).
+
+**Files modified:**
+- `src/bot/handlers/video_preview.py` — Added `_cleanup_episode_files()` function and call after logging, before marking stage as "done"
+- `scripts/cleanup_output.sh` — New cron safety net script for orphaned file cleanup
+
+**VPS setup required:**
+```
+crontab -e
+0 4 * * * /opt/mootoshi/scripts/cleanup_output.sh >> /var/log/mootoshi-cleanup.log 2>&1
+```
+
+---
+
 ## 2026-02-22 — LANCZOS Resampling & External Watermark Removal
 
 **Problem:** Two visual artifacts in rendered output: (1) Visible vertical seams/stripes in all background images — caused by `Image.NEAREST` resampling at non-integer scale factors (e.g., 2752→1920 = 0.698x). Nearest-neighbor creates uneven column widths that appear as vertical bands in smooth illustrations. (2) A rectangular texture mismatch in the bottom-right corner of backgrounds — the `clean_background()` watermark removal function copied pixels from above the watermark area, which at material boundaries (grass/dirt, wood plank edges) created a visible patch.
