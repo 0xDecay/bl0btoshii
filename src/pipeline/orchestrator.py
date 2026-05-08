@@ -262,6 +262,14 @@ async def run_daily_pipeline(bot):
     Args:
         bot: Discord bot instance.
     """
+    from src.bot.scheduler import is_pipeline_paused
+
+    # Defense in depth: even if the scheduler somehow started, refuse to run
+    # (and refuse to post the "skipped — busy" Discord noise) when paused.
+    if is_pipeline_paused():
+        print("[Orchestrator] PIPELINE_PAUSED=true — daily pipeline silent return.")
+        return
+
     from src.bot.bot import CHANNEL_IDS
     from src.bot.handlers.idea_selection import post_daily_ideas
 
@@ -306,6 +314,14 @@ async def run_weekly_analytics(bot):
     Args:
         bot: Discord bot instance.
     """
+    from src.bot.scheduler import is_analytics_paused
+
+    # Defense in depth: silent return if analytics is paused, regardless of
+    # whether the scheduler somehow started.
+    if is_analytics_paused():
+        print("[Orchestrator] ANALYTICS_PAUSED=true — weekly analytics silent return.")
+        return
+
     from src.bot.bot import CHANNEL_IDS
     from src.analytics.report_generator import generate_weekly_report, format_discord_summary
     from src.notion.report_publisher import publish_weekly_report

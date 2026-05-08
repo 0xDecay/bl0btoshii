@@ -28,6 +28,15 @@ def is_pipeline_paused():
     return os.getenv("PIPELINE_PAUSED", "").strip().lower() in ("true", "1", "yes")
 
 
+def is_analytics_paused():
+    """Check if the weekly analytics report is paused via ANALYTICS_PAUSED env var.
+
+    Returns:
+        True if ANALYTICS_PAUSED is set to a truthy value (true/1/yes).
+    """
+    return os.getenv("ANALYTICS_PAUSED", "").strip().lower() in ("true", "1", "yes")
+
+
 def is_weekly_report_day(now=None):
     """Check if the current day is the weekly report day (Monday).
 

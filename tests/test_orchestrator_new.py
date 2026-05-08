@@ -527,3 +527,49 @@ class TestAutoPublishIntegration:
 
             # Pipeline should still reach "done"
             assert any(s.get("stage") == "done" for s in saved_states)
+
+
+# ---------------------------------------------------------------------------
+# Pause flag guards (PIPELINE_PAUSED / ANALYTICS_PAUSED)
+# ---------------------------------------------------------------------------
+
+class TestPauseGuards:
+    """When *_PAUSED env vars are truthy, the orchestrator entrypoints must
+    return silently — no Discord channel access, no message posted."""
+
+    @pytest.mark.asyncio
+    async def test_run_daily_pipeline_silent_when_paused(self, monkeypatch):
+        from src.pipeline import orchestrator
+
+        monkeypatch.setenv("PIPELINE_PAUSED", "true")
+        mock_bot = MagicMock()
+
+        await orchestrator.run_daily_pipeline(mock_bot)
+
+        # When paused, orchestrator must not touch Discord at all.
+        mock_bot.get_channel.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_run_daily_pipeline_runs_when_not_paused(self, monkeypatch):
+        from src.pipeline import orchestrator
+
+        monkeypatch.delenv("PIPELINE_PAUSED", raising=False)
+        mock_bot = MagicMock()
+        mock_bot.get_channel.return_value = None  # short-circuits downstream
+
+        with patch("src.pipeline.orchestrator.load_state", return_value={"stage": "idle"}):
+            await orchestrator.run_daily_pipeline(mock_bot)
+
+        # When NOT paused, get_channel should be called (idea_selection lookup).
+        assert mock_bot.get_channel.called
+
+    @pytest.mark.asyncio
+    async def test_run_weekly_analytics_silent_when_paused(self, monkeypatch):
+        from src.pipeline import orchestrator
+
+        monkeypatch.setenv("ANALYTICS_PAUSED", "true")
+        mock_bot = MagicMock()
+
+        await orchestrator.run_weekly_analytics(mock_bot)
+
+        mock_bot.get_channel.assert_not_called()

@@ -12,6 +12,7 @@ from src.bot.scheduler import (
     PIPELINE_TZ,
     is_weekly_report_day,
     is_pipeline_paused,
+    is_analytics_paused,
 )
 
 
@@ -153,3 +154,44 @@ class TestIsPipelinePaused:
     def test_not_paused_when_env_empty(self, monkeypatch):
         monkeypatch.setenv("PIPELINE_PAUSED", "")
         assert is_pipeline_paused() is False
+
+
+# ---------------------------------------------------------------------------
+# Analytics pause flag
+# ---------------------------------------------------------------------------
+
+
+class TestIsAnalyticsPaused:
+    """Tests for the ANALYTICS_PAUSED env var check."""
+
+    def test_paused_when_env_true(self, monkeypatch):
+        monkeypatch.setenv("ANALYTICS_PAUSED", "true")
+        assert is_analytics_paused() is True
+
+    def test_paused_when_env_1(self, monkeypatch):
+        monkeypatch.setenv("ANALYTICS_PAUSED", "1")
+        assert is_analytics_paused() is True
+
+    def test_paused_when_env_yes(self, monkeypatch):
+        monkeypatch.setenv("ANALYTICS_PAUSED", "yes")
+        assert is_analytics_paused() is True
+
+    def test_paused_case_insensitive(self, monkeypatch):
+        monkeypatch.setenv("ANALYTICS_PAUSED", "TRUE")
+        assert is_analytics_paused() is True
+
+    def test_not_paused_when_env_false(self, monkeypatch):
+        monkeypatch.setenv("ANALYTICS_PAUSED", "false")
+        assert is_analytics_paused() is False
+
+    def test_not_paused_when_env_0(self, monkeypatch):
+        monkeypatch.setenv("ANALYTICS_PAUSED", "0")
+        assert is_analytics_paused() is False
+
+    def test_not_paused_when_env_missing(self, monkeypatch):
+        monkeypatch.delenv("ANALYTICS_PAUSED", raising=False)
+        assert is_analytics_paused() is False
+
+    def test_not_paused_when_env_empty(self, monkeypatch):
+        monkeypatch.setenv("ANALYTICS_PAUSED", "")
+        assert is_analytics_paused() is False
